@@ -70,9 +70,10 @@ const ANALYZE_EVERY_MS = 150;
 const PREVIEW_W = 320;
 const PREVIEW_H = 240;
 
-let stream = null;
-let timer = null;
 let running = false;
+let timer = null;
+let stream = null;
+let sessionId = 0;
 let lastRequest = 0;
 const offscreen = document.createElement("canvas");
 const offCtx = offscreen.getContext("2d");
@@ -109,6 +110,10 @@ enrollForm.addEventListener("submit", async (e) => {
 
 async function startCamera() {
   if (stream) return;
+
+  sessionId += 1;
+  const mySession = sessionId;
+
   stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
   video.srcObject = stream;
 
@@ -116,26 +121,32 @@ async function startCamera() {
     video.onloadedmetadata = () => resolve();
   });
 
-  overlay.width = video.videoWidth;
-  overlay.height = video.videoHeight;
-  offscreen.width = 640;
-  offscreen.height = Math.round(video.videoHeight * (640 / video.videoWidth));
+  if (!running && mySession !== sessionId) return;
 
   running = true;
-  document.getElementById("liveStatus").textContent = "Camera on";
-  loop();
+  loop(mySession);
 }
 
 function stopCamera() {
   running = false;
-  if (timer) clearTimeout(timer);
-  timer = null;
+  sessionId += 1; // инвалидируем все старые async-цепочки
+
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
+
   if (stream) {
     stream.getTracks().forEach(t => t.stop());
     stream = null;
   }
+
+  video.pause();
+  video.srcObject = null;
+  video.removeAttribute("src");
+  video.load();
+
   ctx.clearRect(0, 0, overlay.width, overlay.height);
-  document.getElementById("liveStatus").textContent = "Camera off";
 }
 
 function drawBoxes(frameCanvas, faces) {
@@ -168,30 +179,46 @@ function drawBoxes(frameCanvas, faces) {
   });
 }
 
-async function loop() {
-  if (!running) return;
+async function loop(mySession) {
+  if (!running || mySession !== sessionId) return;
+
   if (video.videoWidth > 0 && video.videoHeight > 0) {
     offCtx.drawImage(video, 0, 0, offscreen.width, offscreen.height);
-    const blob = await new Promise(resolve => offscreen.toBlob(resolve, "image/jpeg", 0.8));
 
-    const fd = new FormData();
-    fd.append("file", blob, "frame.jpg");
+    if (!running || mySession !== sessionId) return;
 
     const now = Date.now();
-    if (now - lastRequest > 50) {
+    if (now - lastRequest > 25) {
       lastRequest = now;
+
+      const blob = await new Promise(resolve =>
+        offscreen.toBlob(resolve, "image/jpeg", 0.8)
+      );
+
+      if (!running || mySession !== sessionId || !blob) return;
+
+      const fd = new FormData();
+      fd.append("file", blob, "frame.jpg");
+
       try {
         const r = await fetch("/api/recognize_frame", { method: "POST", body: fd });
+        if (!running || mySession !== sessionId) return;
+
         const data = await r.json();
-        drawBoxes(offscreen || [], data.faces || []);
-        document.getElementById("liveStatus").textContent =
-          data.faces?.length ? `Found faces: ${data.faces.length}` : "Face not found";
+        if (!running || mySession !== sessionId) return;
+
+        drawBoxes(data.faces || []);
       } catch (err) {
-        document.getElementById("liveStatus").textContent = err;
+        if (running && mySession === sessionId) {
+          document.getElementById("liveStatus").textContent = "Ошибка распознавания";
+        }
       }
     }
   }
-  timer = setTimeout(loop, 50);
+
+  if (running && mySession === sessionId) {
+    timer = setTimeout(() => loop(mySession), 50);
+  }
 }
 
 document.getElementById("startBtn").addEventListener("click", startCamera);
