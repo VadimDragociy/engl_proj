@@ -1,6 +1,6 @@
 # custom:
-.data
-.engl_venv
+data/
+engl_venv/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
