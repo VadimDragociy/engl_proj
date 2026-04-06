@@ -15,7 +15,7 @@ async def enroll(name: str = Form(...), files: list[UploadFile] = File(...)):
     added = 0
 
     for f in files:
-        print(10)
+        # print(10)
         data = await f.read()
         img = read_image(data)
 
