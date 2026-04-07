@@ -7,7 +7,7 @@ This is a MVP face recognition system created for project fair held by Foreighn 
 
 ## Algorithm
 
-Face embeddings are created directly from the video feed (with a framerate around 10 fps on 3050 mobile gpu (4 gb VRam))
+Face embeddings are created directly from the video feed (with a framerate around 20 fps on 3050 mobile gpu (4 gb VRam))
 
 Afterwards embeddings are compared to each entry in the database
 
