@@ -36,7 +36,11 @@ The `resources` folder contains project media materials:
 - `resources/demo.mp4` — video demonstration of the project
 
 <!-- ![demo](resources\demo.mp4) -->
-<video src="./resources/demo.mp4" controls title="Title" width="100%">demo</video>
+<!-- <video src="./resources/demo.mp4" controls title="demo" width="100%"></video>
+ -->
+
+https://github.com/user-attachments/assets/8c1b00a0-3b33-49c7-87af-159c454ed592
+
 
 ## Project Future
 
