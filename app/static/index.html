@@ -1,105 +1,10 @@
 <!doctype html>
 <html lang="ru">
-
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Face Recognition prototype</title>
-  <style>
-    body {
-      font-family: system-ui, Arial, sans-serif;
-      margin: 24px;
-      background: #111;
-      color: #eee;
-    }
-
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      align-items: start;
-    }
-
-    .card {
-      background: #1b1b1b;
-      border: 1px solid #333;
-      border-radius: 14px;
-      padding: 16px;
-    }
-
-    input,
-    button {
-      font-size: 15px;
-      padding: 10px 12px;
-      border-radius: 10px;
-      border: 1px solid #444;
-    }
-
-    input {
-      background: #0f0f0f;
-      color: #eee;
-      width: 100%;
-      box-sizing: border-box;
-    }
-
-    button {
-      background: #2d6cdf;
-      color: white;
-      cursor: pointer;
-      border: none;
-    }
-
-    button.secondary {
-      background: #444;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-
-    td,
-    th {
-      padding: 8px;
-      border-bottom: 1px solid #333;
-      text-align: left;
-    }
-
-    .video-wrap {
-      position: relative;
-      max-width: 100%;
-      width: 100%;
-      aspect-ratio: 4 / 3;
-      max-height: 480px;
-      overflow: hidden;
-    }
-
-    video,
-    canvas {
-      width: 100%;
-      object-fit: cover;
-      border-radius: 12px;
-      background: #000;
-    }
-
-    canvas.overlay {
-      position: absolute;
-      left: 0;
-      top: 0;
-      pointer-events: none;
-    }
-
-    .muted {
-      color: #aaa;
-      font-size: 13px;
-    }
-
-    .row {
-      display: grid;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-  </style>
+  <link rel="stylesheet" href="./css/styles.css" />
 </head>
 
 <body>
@@ -124,190 +29,24 @@
         <video id="video" autoplay playsinline muted></video>
         <canvas id="overlay" class="overlay"></canvas>
       </div>
-      <div style="display:flex; gap:10px; margin-top: 12px;">
+      <div class="controls">
         <button id="startBtn">Start Camera</button>
         <button id="stopBtn" class="secondary">Stop</button>
       </div>
-      <div id="liveStatus" class="muted" style="margin-top: 10px;"></div>
+      <div id="liveStatus" class="muted status"></div>
     </div>
   </div>
-  <!-- 
-  <div class="card" style="margin-top: 20px;">
+
+  <div class="card spacer">
     <h2>Base</h2>
     <table>
-      <thead><tr><th>Name</th><th>Samples</th></tr></thead>
+      <thead>
+        <tr><th>Name</th><th>Samples</th></tr>
+      </thead>
       <tbody id="peopleBody"></tbody>
     </table>
-  </div> -->
+  </div>
 
-  <script>
-    const enrollForm = document.getElementById("enrollForm");
-    const enrollResult = document.getElementById("enrollResult");
-    const peopleBody = document.getElementById("peopleBody");
-    const video = document.getElementById("video");
-    const overlay = document.getElementById("overlay");
-    const ctx = overlay.getContext("2d");
-    const ANALYZE_EVERY_MS = 150;
-    const PREVIEW_W = 320;
-    const PREVIEW_H = 240;
-
-    let stream = null;
-    let timer = null;
-    let running = false;
-    let lastRequest = 0;
-    let sessionId = 0
-    let mySession = 0
-    const offscreen = document.createElement("canvas");
-    const offCtx = offscreen.getContext("2d");
-    offscreen.width = PREVIEW_W;
-    offscreen.height = PREVIEW_H;
-
-    async function refreshPeople() {
-      const r = await fetch("/api/people");
-      const data = await r.json();
-      peopleBody.innerHTML = data.people.map(p =>
-        `<tr><td>${escapeHtml(p.name)}</td><td>${p.samples}</td></tr>`
-      ).join("");
-    }
-
-    function escapeHtml(s) {
-      return s.replace(/[&<>"']/g, c => ({
-        "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "'": "&#39;"
-      }[c]));
-    }
-
-    enrollForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(enrollForm);
-      const r = await fetch("/api/enroll", { method: "POST", body: fd });
-      const data = await r.json();
-      if (!r.ok) {
-        enrollResult.textContent = "Error: " + (data.detail || "unknown");
-        return;
-      }
-      enrollResult.textContent = `Ready: ${data.added} added. Skipped: ${data.skipped}.`;
-      enrollForm.reset();
-      await refreshPeople();
-    });
-
-    async function startCamera() {
-      sessionId += 1;
-      mySession = sessionId;
-
-      if (stream) return;
-      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-      video.srcObject = stream;
-
-      await new Promise(resolve => {
-        video.onloadedmetadata = () => resolve();
-      });
-
-      overlay.width = video.videoWidth;
-      overlay.height = video.videoHeight;
-      offscreen.width = 640;
-      offscreen.height = Math.round(video.videoHeight * (640 / video.videoWidth));
-
-      running = true;
-      // console.log(running, mySession, sessionId)
-      if (!running && mySession !== sessionId) return;
-      document.getElementById("liveStatus").textContent = "Camera on";
-      loop();
-    }
-
-    function stopCamera() {
-      running = false;
-      sessionId += 1;
-
-      if (timer) clearTimeout(timer);
-      timer = null;
-
-      if (stream) {
-        stream.getTracks().forEach(t => t.stop());
-        stream = null;
-      }
-
-      ctx.clearRect(0, 0, overlay.width, overlay.height);
-      document.getElementById("liveStatus").textContent = "Camera off";
-    }
-
-    function drawBoxes(frameCanvas, faces) {
-      if (!running || mySession !== sessionId) return;
-
-      ctx.clearRect(0, 0, overlay.width, overlay.height);
-      ctx.drawImage(frameCanvas, 0, 0, overlay.width, overlay.height);
-      const scaleX = overlay.width / offscreen.width;
-      const scaleY = overlay.height / offscreen.height;
-
-      ctx.lineWidth = 3;
-      ctx.font = "16px Arial";
-
-      faces.forEach(f => {
-        const [x1, y1, x2, y2] = f.bbox;
-
-        const x = x1 * scaleX;
-        const y = y1 * scaleY;
-        const w = (x2 - x1) * scaleX;
-        const h = (y2 - y1) * scaleY;
-
-        ctx.strokeStyle = "#00ff88";
-        ctx.strokeRect(x, y, w, h);
-
-        const label = `${f.name} ${(f.score * 100).toFixed(1)}%`;
-
-        ctx.fillStyle = "rgba(0,0,0,0.6)";
-        ctx.fillRect(x, y - 20, ctx.measureText(label).width + 10, 20);
-
-        ctx.fillStyle = "white";
-        ctx.fillText(label, x + 5, y - 5);
-      });
-    }
-
-    async function loop() {
-      // console.log(2, running, mySession, sessionId, mySession !== sessionId)
-      if (!running || mySession !== sessionId) return;
-
-      if (video.videoWidth > 0 && video.videoHeight > 0) {
-        // console.log(3, running, mySession, sessionId)
-        if (!running || mySession !== sessionId) return;
-        offCtx.drawImage(video, 0, 0, offscreen.width, offscreen.height);
-        const blob = await new Promise(resolve => offscreen.toBlob(resolve, "image/jpeg", 0.8));
-        // console.log(3, running, mySession, sessionId, mySession !== sessionId, !blob)
-        if (!running || mySession !== sessionId || !blob) return;
-
-        const fd = new FormData();
-        fd.append("file", blob, "frame.jpg");
-  
-        const now = Date.now();
-        if (now - lastRequest > 10) {
-          lastRequest = now;
-          try {
-            const r = await fetch("/api/recognize_frame", { method: "POST", body: fd });
-            // console.log(4, running, mySession, sessionId, mySession !== sessionId)
-            if (!running || mySession !== sessionId) return;
-
-            const data = await r.json();
-            // console.log(5, running, mySession, sessionId, mySession !== sessionId)
-            if (!running || mySession !== sessionId) return;
-
-            drawBoxes(offscreen || [], data.faces || []);
-
-            document.getElementById("liveStatus").textContent =
-              data.faces?.length ? `Found faces: ${data.faces.length}` : "Face not found";
-          } catch (err) {
-            document.getElementById("liveStatus").textContent = err;
-          }
-        }
-      }
-      if (running && mySession === sessionId) {
-        timer = setTimeout(() => loop(), 50);
-      }
-    }
-
-    document.getElementById("startBtn").addEventListener("click", startCamera);
-    document.getElementById("stopBtn").addEventListener("click", stopCamera);
-
-    refreshPeople();
-  </script>
+  <script type="module" src="./js/main.js"></script>
 </body>
-
 </html>
