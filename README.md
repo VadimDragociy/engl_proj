@@ -29,10 +29,14 @@ The project is still in active development. Planned improvements include scalabl
 
 ## Media
 
+
 The `resources` folder contains project media materials:
 
 - `resources/hnsw.png` — illustration of the HNSW approach
 - `resources/demo.mp4` — video demonstration of the project
+
+<!-- ![demo](resources\demo.mp4) -->
+<video src="resources\demo.mp4" controls title="Title" width="100%">demo</video>
 
 ## Project Future
 
