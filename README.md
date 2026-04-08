@@ -34,8 +34,42 @@ The `resources` folder contains project media materials:
 - `resources/hnsw.png` — illustration of the HNSW approach
 - `resources/demo.mp4` — video demonstration of the project
 
+## Project Future
+
+### HNSW
+![hnsw](resources\hnsw.png)
+
+HNSW (Hierarchical Navigable Small World) is an approximate nearest-neighbor search method for vectors.
+
+It works by building several graph layers:
+
+- The top layers are sparse and act like a coarse map.
+- The bottom layer is dense and contains most vectors.
+
+To search, it starts at the top with a random entry point, then repeatedly moves to closer neighbors while descending layer by layer. At each layer it does a greedy walk: from the current node, it checks nearby nodes and moves to the one that looks closest to the query.
+
+Why it is fast:
+
+- The upper layers let it jump quickly to the right region.
+- The lower layer does fine-grained search only around promising candidates.
+- It avoids scanning all vectors, so search is much faster than brute force.
+
+Why it works well:
+
+- The graph is built so each node connects to a small set of useful neighbors.
+- That creates “small-world” shortcuts, which makes navigation efficient.
+
+### Proximity sensor + top 1 candidate
+![proximity](resources\proximity.png)
+
+1) Image inference will only work when someone is up close -> thus saved time
+2) We will only inference 1 closest face -> no trespassing and no detection of every face in the frame
+
 ## Getting started
 
+These are requirements for CPU version
+GPU version will require you to install onnxruntime-gpu, proper Cudnn and Cuda
 ```bash
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
