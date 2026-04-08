@@ -36,12 +36,12 @@ The `resources` folder contains project media materials:
 - `resources/demo.mp4` — video demonstration of the project
 
 <!-- ![demo](resources\demo.mp4) -->
-<video src="resources\demo.mp4" controls title="Title" width="100%">demo</video>
+<video src="./resources/demo.mp4" controls title="Title" width="100%">demo</video>
 
 ## Project Future
 
 ### HNSW
-![hnsw](resources\hnsw.png)
+![hnsw](./resources/hnsw.png)
 
 HNSW (Hierarchical Navigable Small World) is an approximate nearest-neighbor search method for vectors.
 
@@ -64,7 +64,7 @@ Why it works well:
 - That creates “small-world” shortcuts, which makes navigation efficient.
 
 ### Proximity sensor + top 1 candidate
-![proximity](resources\proximity.png)
+![proximity](./resources/proximity.png)
 
 1) Image inference will only work when someone is up close -> thus saved time
 2) We will only inference 1 closest face -> no trespassing and no detection of every face in the frame
